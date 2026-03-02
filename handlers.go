@@ -84,3 +84,43 @@ func handlerAgg(s *state, cmd command) error {
 	fmt.Println(*feed)
 	return nil
 }
+
+func handlerAddFeed(s *state, cmd command) error {
+	if len(cmd.Args) != 2 {
+		return fmt.Errorf("usage: %v <name> <url>", cmd.Name)
+	}
+	name := cmd.Args[0]
+	url := cmd.Args[1]
+
+	userID, err := s.db.GetUserID(context.Background(), s.cfg.CurrentUserName)
+	if err != nil {
+		return fmt.Errorf("couldn't get user id: %v", err)
+	}
+
+	feed, err := s.db.AddFeed(context.Background(), database.AddFeedParams{
+		ID:        uuid.New(),
+		CreatedAt: time.Now().UTC(),
+		UpdatedAt: time.Now().UTC(),
+		Name:      name,
+		Url:       url,
+		UserID:    userID,
+	})
+
+	if err != nil {
+		return fmt.Errorf("couldn't add feed: %v", err)
+	}
+	fmt.Printf("feed added.\nname: %v\nurl: %v\n", feed.Name, feed.Url)
+	return nil
+}
+
+func handlerFeeds(s *state, cmd command) error {
+	feeds, err := s.db.GetFeeds(context.Background())
+	if err != nil {
+		return fmt.Errorf("couldn't get feeds: %v", err)
+	}
+	for _, feed := range feeds {
+		fmt.Println("-----------------------------------------------------------------------")
+		fmt.Printf("Name: %v\nURL: %v\nUser: %v\n", feed.Name, feed.Url, feed.User.String)
+	}
+	return nil
+}
