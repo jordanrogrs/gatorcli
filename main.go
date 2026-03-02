@@ -1,11 +1,15 @@
 package main
 
 import (
-	"fmt"
 	"log"
+	"os"
 
 	"github.com/jordanrogrs/gatorcli/internal/config"
 )
+
+type state struct {
+	cfg *config.Config
+}
 
 func main() {
 	cfg, err := config.Read()
@@ -13,18 +17,28 @@ func main() {
 		log.Fatalf("error reading config: %v", err)
 		return
 	}
-	fmt.Printf("Read config: %+v\n", cfg)
 
-	err = cfg.SetUser("jordan")
-	if err != nil {
-		log.Fatalf("error setting user: %v", err)
+	s := &state{
+		cfg: &cfg,
 	}
 
-	cfg, err = config.Read()
-	if err != nil {
-		log.Fatalf("error reading config: %v", err)
-		return
+	cmds := commands{
+		availableCommands: make(map[string]func(*state, command) error),
 	}
-	fmt.Println(cfg)
 
+	cmds.register("login", handlerLogin)
+
+	if len(os.Args) < 2 {
+		log.Fatal("Usage: cli <command> [args...]")
+	}
+
+	cmd := command{
+		Name: os.Args[1],
+		Args: os.Args[2:],
+	}
+
+	err = cmds.run(s, cmd)
+	if err != nil {
+		log.Fatal(err)
+	}
 }
