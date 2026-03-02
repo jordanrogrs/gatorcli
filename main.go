@@ -1,13 +1,17 @@
 package main
 
 import (
+	"database/sql"
 	"log"
 	"os"
 
 	"github.com/jordanrogrs/gatorcli/internal/config"
+	"github.com/jordanrogrs/gatorcli/internal/database"
+	_ "github.com/lib/pq"
 )
 
 type state struct {
+	db  *database.Queries
 	cfg *config.Config
 }
 
@@ -18,7 +22,17 @@ func main() {
 		return
 	}
 
+	db, err := sql.Open("postgres", cfg.DBURL)
+	if err != nil {
+		log.Fatalf("error connecting to database: %v", err)
+		return
+	}
+	defer db.Close()
+
+	dbQueries := database.New(db)
+
 	s := &state{
+		db:  dbQueries,
 		cfg: &cfg,
 	}
 
@@ -27,6 +41,9 @@ func main() {
 	}
 
 	cmds.register("login", handlerLogin)
+	cmds.register("register", handlerRegister)
+	cmds.register("reset", handlerReset)
+	cmds.register("users", handlerUsers)
 
 	if len(os.Args) < 2 {
 		log.Fatal("Usage: cli <command> [args...]")
