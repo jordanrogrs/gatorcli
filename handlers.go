@@ -75,16 +75,6 @@ func handlerReset(s *state, cmd command) error {
 	return nil
 }
 
-func handlerAgg(s *state, cmd command) error {
-	feedURL := "https://www.wagslane.dev/index.xml"
-	feed, err := fetchFeed(context.Background(), feedURL)
-	if err != nil {
-		return fmt.Errorf("couldn't get feed: %v", err)
-	}
-	fmt.Println(*feed)
-	return nil
-}
-
 func handlerAddFeed(s *state, cmd command, user database.User) error {
 	if len(cmd.Args) != 2 {
 		return fmt.Errorf("usage: %v <name> <url>", cmd.Name)
@@ -188,4 +178,19 @@ func handlerUnfollow(s *state, cmd command, user database.User) error {
 	}
 	fmt.Printf("feed %v unfollowed successfully\n", feed.Name)
 	return nil
+}
+
+func handlerAgg(s *state, cmd command) error {
+	if len(cmd.Args) != 1 {
+		return fmt.Errorf("usage: %v <time_between_requests>", cmd.Name)
+	}
+	timeBetweenRequests, err := time.ParseDuration(cmd.Args[0])
+	if err != nil {
+		return fmt.Errorf("invalid time signature: %v", err)
+	}
+	fmt.Printf("Collecting feeds every %v...\n", timeBetweenRequests)
+	ticker := time.NewTicker(timeBetweenRequests)
+	for ; ; <-ticker.C {
+		scrapeFeeds(s)
+	}
 }

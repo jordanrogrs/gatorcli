@@ -2,10 +2,15 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"encoding/xml"
+	"fmt"
 	"html"
 	"io"
 	"net/http"
+	"time"
+
+	"github.com/jordanrogrs/gatorcli/internal/database"
 )
 
 type RSSFeed struct {
@@ -57,4 +62,31 @@ func fetchFeed(ctx context.Context, feedURL string) (*RSSFeed, error) {
 	}
 
 	return &feed, nil
+}
+
+func scrapeFeeds(s *state) error {
+	feed, err := s.db.GetNextFeedToFetch(context.Background())
+	if err != nil {
+		return err
+	}
+	feed, err = s.db.MarkFeedFetched(context.Background(), database.MarkFeedFetchedParams{
+		UpdatedAt: time.Now().UTC(),
+		LastFetchedAt: sql.NullTime{
+			Time:  time.Now().UTC(),
+			Valid: true,
+		},
+		ID: feed.ID,
+	})
+	if err != nil {
+		return err
+	}
+	rssfeed, err := fetchFeed(context.Background(), feed.Url)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("Feed: %v\n", rssfeed.Channel.Title)
+	for _, item := range rssfeed.Channel.Item {
+		fmt.Printf("Post: %v\n", item.Title)
+	}
+	return nil
 }
