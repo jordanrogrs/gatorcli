@@ -8,8 +8,10 @@ import (
 	"html"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/jordanrogrs/gatorcli/internal/database"
 )
 
@@ -80,13 +82,47 @@ func scrapeFeeds(s *state) error {
 	if err != nil {
 		return err
 	}
+
+	fmt.Printf("Fetching feed: %v\n", feed.Name)
 	rssfeed, err := fetchFeed(context.Background(), feed.Url)
 	if err != nil {
 		return err
 	}
-	fmt.Printf("Feed: %v\n", rssfeed.Channel.Title)
-	for _, item := range rssfeed.Channel.Item {
-		fmt.Printf("Post: %v\n", item.Title)
+	for _, post := range rssfeed.Channel.Item {
+		fmt.Printf("Fetched post: %v\n", post.Title)
+		fmt.Println("Storing post...")
+		p, err := s.db.CreatePost(context.Background(), database.CreatePostParams{
+			ID:          uuid.New(),
+			CreatedAt:   time.Now().UTC(),
+			UpdatedAt:   time.Now().UTC(),
+			Title:       post.Title,
+			Url:         post.Link,
+			Description: sql.NullString{String: post.Description, Valid: true},
+			PublishedAt: normalizePubDate(post.PubDate),
+			FeedID:      feed.ID,
+		})
+		if err != nil {
+			if strings.Contains(err.Error(), "duplicate") {
+				fmt.Println("Duplicate post. Skipping...")
+				continue
+			}
+			fmt.Printf("error storing post: %v", err)
+			continue
+		}
+		fmt.Printf("Post stored: %v\n", p.Title)
 	}
+	fmt.Printf("Feed scrape complete. Fetched %v posts.\n", len(rssfeed.Channel.Item))
 	return nil
+}
+
+func normalizePubDate(pubDate string) sql.NullTime {
+	if pubDate == "" {
+		return sql.NullTime{Valid: false}
+	}
+
+	time, err := time.Parse(time.RFC1123, pubDate)
+	if err != nil {
+		return sql.NullTime{Valid: false}
+	}
+	return sql.NullTime{Time: time, Valid: true}
 }

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/google/uuid"
@@ -177,6 +178,35 @@ func handlerUnfollow(s *state, cmd command, user database.User) error {
 		return fmt.Errorf("error unfollowing feed: %v", err)
 	}
 	fmt.Printf("feed %v unfollowed successfully\n", feed.Name)
+	return nil
+}
+
+func handlerBrowse(s *state, cmd command, user database.User) error {
+	if len(cmd.Args) > 1 {
+		return fmt.Errorf("usage: %v [limit]>")
+	}
+	limit := 2
+	if len(cmd.Args) == 1 {
+		n, err := strconv.Atoi(cmd.Args[0])
+		if err != nil {
+			return fmt.Errorf("incorrect limit type: %v", err)
+		}
+		limit = n
+	}
+	fmt.Printf("Fetching %v posts for user: %v\n", limit, user.Name)
+	posts, err := s.db.GetPostsForUser(context.Background(), database.GetPostsForUserParams{
+		ID:    user.ID,
+		Limit: int32(limit),
+	})
+	if err != nil {
+		return fmt.Errorf("error loading posts: %v", err)
+	}
+	fmt.Printf("%v posts fetched.\n", len(posts))
+	for _, post := range posts {
+		fmt.Printf("- %v\n", post.Title)
+		fmt.Printf("  Published: %v\n", post.PublishedAt.Time)
+		fmt.Println("  " + post.Description.String)
+	}
 	return nil
 }
 
