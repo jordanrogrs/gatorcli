@@ -183,7 +183,7 @@ func handlerUnfollow(s *state, cmd command, user database.User) error {
 
 func handlerBrowse(s *state, cmd command, user database.User) error {
 	if len(cmd.Args) > 1 {
-		return fmt.Errorf("usage: %v [limit]>")
+		return fmt.Errorf("usage: %v [limit]>", cmd.Name)
 	}
 	limit := 2
 	if len(cmd.Args) == 1 {
